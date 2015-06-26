@@ -115,13 +115,15 @@ app.get('/', function(req, res){
 
 io.sockets.on('connection', function(socket){
     socket.on('disconnect', function(){
-        for(var i = 0; i < max_games; i++){
-            if(games[i].player1name == clients[socket] || games[i].player2name == clients[socket]){
-                console.log(clients[socket] + " disconnected from game " + i);
-                io.sockets.in(games[i].player1name).emit('disconnect', 'other player disconnected');
-                io.sockets.in(games[i].player2name).emit('disconnect', 'other player disconnected');
-                games[i] = new Game();
-                break;
+        if(clients[socket]){
+            for(var i = 0; i < max_games; i++){
+                if(games[i].player1name == clients[socket] || games[i].player2name == clients[socket]){
+                    console.log(clients[socket] + " disconnected from game " + i);
+                    io.sockets.in(games[i].player1name).emit('disconnect', 'other player disconnected');
+                    io.sockets.in(games[i].player2name).emit('disconnect', 'other player disconnected');
+                    games[i] = new Game();
+                    break;
+                }
             }
         }
     });
