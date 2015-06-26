@@ -55,8 +55,6 @@ Game.prototype.update = function(delta){
             io.sockets.in(this.player1name).emit('winner', 'tie');
             io.sockets.in(this.player2name).emit('winner', 'tie');
         }
-        this.player1name = undefined;
-        this.player2name = undefined;
         return;
     }
     if(this.x1 < 0 || this.x1 > this.blocks_w - 1 || this.y1 < 0 || this.y1 > this.blocks_h - 1 || this.blocks[this.x1][this.y1] > 0){
@@ -99,6 +97,7 @@ Game.prototype.update = function(delta){
     io.sockets.in(this.player2name).emit('game data', this.gamedata);
 }//end Game.update()
 
+var clients = {};
 var max_games = 10;
 var games = new Array(max_games);
 for(var i = 0; i < max_games; i++){
@@ -115,6 +114,27 @@ app.get('/', function(req, res){
 });
 
 io.sockets.on('connection', function(socket){
+    socket.on('disconnect', function(){
+        for(var i = 0; i < max_games; i++){
+            if(games[i].player1name == clients[socket] || games[i].player2name == clients[socket]){
+                console.log(clients[socket] + " disconnected from game " + i);
+                io.sockets.in(games[i].player1name).emit('disconnect', 'other player disconnected');
+                io.sockets.in(games[i].player2name).emit('disconnect', 'other player disconnected');
+                games[i] = new Game();
+                break;
+            }
+        }
+    });
+    socket.on('chat', function(message){
+        message = sanitizeString(message);
+        var name = socket.rooms[1];
+        for(var i = 0; i < max_games; i++){
+            if(games[i].player1name == socket.rooms[1] || games[i].player2name == socket.rooms[1]){
+                io.sockets.in(games[i].player1name).emit('chat', {message: message, source: name});
+                io.sockets.in(games[i].player2name).emit('chat', {message: message, source: name});
+            }
+        }
+    });
     socket.on('direction', function(direction){
         var p1 = false;
         var p2 = false;
@@ -143,6 +163,10 @@ io.sockets.on('connection', function(socket){
 
     socket.on('join', function(username){
         username = sanitizeString(username);
+        if(username == ""){
+            socket.emit('join response', 'username cannot be empty');
+            return;
+        }
         if(username == "tie")
             username = "not a 1337 hacker";
         var opengameindex = -1;
@@ -170,6 +194,7 @@ io.sockets.on('connection', function(socket){
             }
         }
         if(username_available){
+            clients[socket] = username;
             socket.join(username);
             if(halfgameindex != -1){
                 io.sockets.in(username).emit('join response', "welcome player 2");
@@ -206,4 +231,3 @@ http.listen(3001, function(){
         then = now;
     }, 100);
 });
-
