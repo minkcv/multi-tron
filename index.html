@@ -1,13 +1,42 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-<!--<script src="/socket.io/socket.io.js"></script>-->
+<style>
+body {
+    font-family: arial, sans-serif;
+    background-color: #b8b8b8;
+    margin: 0px;
+}
+#header {
+    background-color: #282828;
+    color: #e8e8e8;
+    padding: 10px;
+    margin-bottom: 5px;
+}
+#instructions {
+    float: left;
+    padding-right: 10px;
+    margin-left: 10px;
+}
+#game {
+    float: left;
+    border: thick;
+    border-color: #b8b8b8;
+    width: 600px;
+    height: 600px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    margin-left: 10px;
+}
+</style>
 <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
 <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
 <script>
 $(function(){
     var playernumber = 0;
+    var player1name;
+    var player2name;
     var gamestate = 0;
-	var socket = io();
+	var socket = io('zcraft.no-ip.org:3001');
 	var c = document.getElementById("gamecanvas");
 	var ctx = c.getContext("2d");
     var fps = 30;
@@ -28,10 +57,14 @@ $(function(){
     }
 
 	$('form').submit(function(){
-        var username = sanitizeString($('#username').val());
-        socket.emit('join', username);
-        gamestate = 0
-        init();
+        if(gamestate != 1 && playernumber == 0){
+            var username = sanitizeString($('#username').val());
+            socket.emit('join', username);
+            gamestate = 0
+            init();
+        }else{
+            alert("you already picked a username, refresh to play again");
+        }
 		return false;
 	});
   
@@ -57,22 +90,29 @@ $(function(){
             alert("username already taken");
         }
     });
+    socket.on('player info', function(playerdata){
+        player1name = playerdata.p1;
+        player2name = playerdata.p2;
+    });
     socket.on('game state', function(serverstate){
         console.log("game state from server: " + serverstate);
         gamestate = serverstate;
         if(gamestate == 1){
-            if(playernumber == 1)
-                document.getElementById('gamestate').innerHTML = "You are Red";
-            else
-                document.getElementById('gamestate').innerHTML = "You are Blue";
+            if(playernumber == 1){
+                document.getElementById('gamestate').innerHTML = player1name + " vs " + player2name + ". You are Red";
+                document.getElementById('game').style.border = "thick solid #FF0000";
+            }else{
+                document.getElementById('gamestate').innerHTML = player1name + " vs " + player2name + ". You are Blue";
+                document.getElementById('game').style.border = "thick solid #0000FF";
+            }
         }
     });
 
     socket.on('winner', function(winner){
         if(winner != 'tie')
-            document.getElementById('gamestate').innerHTML = winner + " Wins!";
+            document.getElementById('result').innerHTML = winner + " Wins!";
         else
-            document.getElementById('gamestate').innerHTML = "Its a tie.";
+            document.getElementById('result').innerHTML = "Its a tie.";
     });
 
 
@@ -136,7 +176,7 @@ $(function(){
 	var main = function() {
         var now = Date.now();
         var delta = now - then;
-        if(gamestate == 1 || gamestate == 2){
+        if(gamestate != 0){
             render();
         }
         then = now;
@@ -148,10 +188,22 @@ $(function(){
 });
 </script>
 <body>
+<div id='header'>
+<h1>Multi-Tron</h1>
+<p>A multiplayer tron clone in javascript</p>
+</div>
+<div id='instructions'>
+<h2>Pick a Username</h2>
 <form action="">
-Pick a Username: <input id="username" autocomplete="off" /><button>Send</button>
+<input id="username" autocomplete="off" /><button>Send</button>
 </form>
-<p>Game State: <div id="gamestate"></div></p>
+<h2>Game Info:</h2>
+<div id="gamestate"></div>
+<h2>Game Result:</h2>
+<div id="result"></div>
+</div>
+<div id='game'>
 <canvas id="gamecanvas" width="600" height="600"></canvas>
+</div>
 </body>
 </html>

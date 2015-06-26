@@ -43,6 +43,7 @@ Game.prototype.update = function(delta){
     if(this.winner != 0){
         this.inprogress = false;
         io.sockets.in(this.player1name).emit('game state', 2);
+        io.sockets.in(this.player2name).emit('game state', 2);
         if(this.winner == 1){
             io.sockets.in(this.player1name).emit('winner', this.player1name);
             io.sockets.in(this.player2name).emit('winner', this.player1name);
@@ -54,7 +55,6 @@ Game.prototype.update = function(delta){
             io.sockets.in(this.player1name).emit('winner', 'tie');
             io.sockets.in(this.player2name).emit('winner', 'tie');
         }
-        io.sockets.in(this.player2name).emit('game state', 2);
         this.player1name = undefined;
         this.player2name = undefined;
         return;
@@ -176,6 +176,10 @@ io.sockets.on('connection', function(socket){
                 games[halfgameindex].player2name = username;
                 console.log(username + " joined game: " + halfgameindex);
                 games[halfgameindex].init();
+                io.sockets.in(games[halfgameindex].player1name).emit('player info', 
+                        {p1: games[halfgameindex].player1name, p2: games[halfgameindex].player2name});
+                io.sockets.in(games[halfgameindex].player2name).emit('player info', 
+                        {p1: games[halfgameindex].player1name, p2: games[halfgameindex].player2name});
                 io.sockets.in(games[halfgameindex].player1name).emit('game state', 1);
                 io.sockets.in(games[halfgameindex].player2name).emit('game state', 1);
             }else if(opengameindex != -1){
