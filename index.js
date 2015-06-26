@@ -7,6 +7,8 @@ var Game = function(){
     this.player2name;
     this.inprogress = false;
     this.winner;
+    this.player1again;
+    this.player2again;
     this.x1;
     this.y1;
     this.x2;
@@ -21,6 +23,8 @@ var Game = function(){
 }
 
 Game.prototype.init = function(){
+    this.player1again = false;
+    this.player2again = false;
     this.winner = 0;
     this.inprogress = true;
     this.x1 = 10;
@@ -37,6 +41,12 @@ Game.prototype.init = function(){
         }
     }
     console.log("initialized game with players " + this.player1name + " and " + this.player2name);
+    io.sockets.in(this.player1name).emit('player info', 
+            {p1: this.player1name, p2: this.player2name});
+    io.sockets.in(this.player2name).emit('player info', 
+            {p1: this.player1name, p2: this.player2name});
+    io.sockets.in(this.player1name).emit('game state', 1);
+    io.sockets.in(this.player2name).emit('game state', 1);
 }//end Game.init()
 
 Game.prototype.update = function(delta){
@@ -130,6 +140,9 @@ io.sockets.on('connection', function(socket){
     socket.on('chat', function(message){
         message = sanitizeString(message);
         var name = socket.rooms[1];
+        if(!name || name == ""){
+            return;
+        }
         for(var i = 0; i < max_games; i++){
             if(games[i].player1name == socket.rooms[1] || games[i].player2name == socket.rooms[1]){
                 io.sockets.in(games[i].player1name).emit('chat', {message: message, source: name});
@@ -203,12 +216,6 @@ io.sockets.on('connection', function(socket){
                 games[halfgameindex].player2name = username;
                 console.log(username + " joined game: " + halfgameindex);
                 games[halfgameindex].init();
-                io.sockets.in(games[halfgameindex].player1name).emit('player info', 
-                        {p1: games[halfgameindex].player1name, p2: games[halfgameindex].player2name});
-                io.sockets.in(games[halfgameindex].player2name).emit('player info', 
-                        {p1: games[halfgameindex].player1name, p2: games[halfgameindex].player2name});
-                io.sockets.in(games[halfgameindex].player1name).emit('game state', 1);
-                io.sockets.in(games[halfgameindex].player2name).emit('game state', 1);
             }else if(opengameindex != -1){
                 io.sockets.in(username).emit('join response', "welcome player 1");
                 console.log(username + " joined game: " + opengameindex);
@@ -216,6 +223,22 @@ io.sockets.on('connection', function(socket){
             }
         }else{
             socket.emit('join response', "username already taken");
+        }
+    });//end socket.on('join', ...
+    socket.on('play again', function(){
+        for(var i = 0; i < max_games; i++){
+            if(games[i].player1name == socket.rooms[1]){
+                games[i].player1again = true;
+                io.sockets.in(games[i].player2name).emit('other player again');
+            }else if(games[i].player2name == socket.rooms[1]){
+                games[i].player2again = true;
+                io.sockets.in(games[i].player1name).emit('other player again');
+            }
+
+            if(games[i].player1again && games[i].player2again){
+                games[i].init();
+                break;
+            }
         }
     });
 });
